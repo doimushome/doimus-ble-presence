@@ -1,0 +1,14 @@
+{
+  "name": "doimus-ble-presence",
+  "version": "0.1.0",
+  "description": "BLE-based home occupancy detection — scans for phones to detect who's home",
+  "license": "MIT",
+  "author": "Matteo Crippa",
+  "main": "index.js",
+  "doimus": {
+    "type": "native"
+  },
+  "dependencies": {
+    "@stoprocent/noble": "^2.5.5"
+  }
+}

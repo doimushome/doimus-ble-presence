@@ -1,0 +1,82 @@
+{
+  "pluginAlias": "BLE Presence",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Detect who's home by scanning for BLE signals from phones. Each tracked person appears as an occupancy sensor.",
+  "footerDisplay": "Enter the people you want to track. The plugin will scan for their phones via Bluetooth and update their presence automatically.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "people": {
+        "title": "People to Track",
+        "type": "array",
+        "description": "Add each person you want to track. The plugin scans for their phone's Bluetooth signal.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "required": true,
+              "placeholder": "e.g. Matteo"
+            },
+            "bleName": {
+              "title": "Phone Bluetooth Name",
+              "type": "string",
+              "description": "The name your phone advertises via Bluetooth (check Bluetooth settings).",
+              "placeholder": "e.g. Matteo's iPhone"
+            },
+            "bleAddress": {
+              "title": "BLE Address (MAC)",
+              "type": "string",
+              "description": "Optional. BLE MAC address. Less reliable on iOS due to address randomization.",
+              "placeholder": "e.g. AA:BB:CC:DD:EE:FF"
+            }
+          },
+          "required": ["name"]
+        }
+      },
+      "scanInterval": {
+        "title": "Scan Interval",
+        "type": "string",
+        "default": "1m",
+        "description": "How often to scan for phones.",
+        "oneOf": [
+          { "title": "Every minute", "enum": ["1m"] },
+          { "title": "Every 15 minutes", "enum": ["15m"] },
+          { "title": "Every 30 minutes", "enum": ["30m"] },
+          { "title": "Every hour", "enum": ["1h"] }
+        ]
+      },
+      "scanDuration": {
+        "title": "Scan Duration (seconds)",
+        "type": "integer",
+        "default": 10,
+        "minimum": 5,
+        "maximum": 60,
+        "description": "How long each BLE scan lasts. Longer = more devices found."
+      },
+      "rssiThreshold": {
+        "title": "Signal Threshold (dBm)",
+        "type": "integer",
+        "default": -70,
+        "minimum": -100,
+        "maximum": -40,
+        "description": "Signal strength cutoff. Devices weaker than this are considered 'away'. -70 works for most homes."
+      },
+      "awayDelay": {
+        "title": "Away Delay (seconds)",
+        "type": "integer",
+        "default": 120,
+        "minimum": 30,
+        "maximum": 600,
+        "description": "How long a phone must be undetectable before marking 'away'. Prevents flapping."
+      },
+      "debug": {
+        "title": "Debug Logging",
+        "type": "boolean",
+        "default": false
+      }
+    }
+  }
+}
