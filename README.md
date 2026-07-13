@@ -100,6 +100,12 @@ doimus-ble-presence/
 - Verify the phone's BLE name in Bluetooth settings
 - Re-enter the correct name in plugin settings
 
+## Credits
+
+- [@stoprocent/noble](https://github.com/stoprocent/noble) — BLE scanning library (actively maintained fork of the original [noble](https://github.com/sandeepmistry/noble) project)
+- [BlueZ](https://www.bluez.org/) — Linux Bluetooth protocol stack
+- Inspired by BLE presence detection patterns from the Home Assistant and Homebridge communities
+
 ## License
 
 MIT
