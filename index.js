@@ -1,7 +1,5 @@
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
 const { BLEScanner } = require("./lib/ble-scanner");
 const { PresenceTracker, STATE } = require("./lib/presence-tracker");
 
@@ -39,42 +37,27 @@ function makeDeviceId(name) {
   return `ble-${slug}`;
 }
 
-function persistPath() {
-  const dir = path.join(process.cwd(), "data", "persist");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return path.join(dir, "ble-presence-devices.json");
-}
-
-function loadPersistedDevices() {
-  try {
-    const file = persistPath();
-    if (fs.existsSync(file)) {
-      return JSON.parse(fs.readFileSync(file, "utf8"));
-    }
-  } catch {}
-  return [];
-}
-
-function persistDevices(devices) {
-  try {
-    fs.writeFileSync(persistPath(), JSON.stringify(devices, null, 2), "utf8");
-  } catch (err) {
-    log("error", `Failed to persist devices: ${err.message}`);
-  }
+function pushState(api, personName, trackerRef) {
+  const info = trackerRef.getState(personName);
+  if (!info) return;
+  const deviceId = makeDeviceId(personName);
+  const isHome = info.state === STATE.HOME;
+  api.updateDeviceState(deviceId, {
+    on: isHome,
+    occupancy: isHome ? 1 : 0,
+    rssi: info.avgRssi,
+  });
 }
 
 // ─── Scan cycle ────────────────────────────────────────────────────────────────
 
 async function runScanCycle(config) {
-  if (!scanner || !tracker) return;
+  if (!scanner || !tracker || !savedApi) return;
 
   const duration = (config.scanDuration || 10) * 1000;
   const people = config.people || [];
 
-  if (people.length === 0) {
-    log("debug", "No people configured, skipping scan");
-    return;
-  }
+  if (people.length === 0) return;
 
   try {
     log("debug", `Scanning BLE (${duration / 1000}s)...`);
@@ -85,7 +68,6 @@ async function runScanCycle(config) {
     const seenThisCycle = new Set();
 
     for (const peripheral of peripherals) {
-      // Match against configured people
       const matched = people.find((p) => {
         if (p.bleName && peripheral.localName === p.bleName) return true;
         if (p.bleAddress && peripheral.address.toLowerCase() === p.bleAddress.toLowerCase()) return true;
@@ -106,23 +88,9 @@ async function runScanCycle(config) {
       }
     }
 
-    // Update Doimus state
+    // Push state to Doimus for each tracked person
     for (const person of people) {
-      const stateInfo = tracker.getState(person.name);
-      if (!stateInfo) continue;
-
-      const deviceId = makeDeviceId(person.name);
-      const isHome = stateInfo.state === STATE.HOME;
-
-      const state = {
-        on: isHome,
-        occupancy: isHome ? 1 : 0,
-        rssi: stateInfo.avgRssi,
-      };
-
-      if (registeredDeviceIds.includes(deviceId)) {
-        savedApi.updateDeviceState(deviceId, state);
-      }
+      pushState(savedApi, person.name, tracker);
     }
   } catch (err) {
     log("error", `Scan failed: ${err.message}`);
@@ -149,13 +117,7 @@ module.exports = {
       awayDelay,
       onStateChange: (personId, oldState, newState, avgRssi) => {
         log("info", `${personId}: ${oldState} → ${newState} (RSSI: ${avgRssi} dBm)`);
-        const deviceId = makeDeviceId(personId);
-        const isHome = newState === STATE.HOME;
-        savedApi.updateDeviceState(deviceId, {
-          on: isHome,
-          occupancy: isHome ? 1 : 0,
-          rssi: avgRssi,
-        });
+        pushState(api, personId, tracker);
       },
       log,
     });
@@ -176,31 +138,36 @@ module.exports = {
 
     if (people.length === 0) {
       log("warn", "No people configured. Add people in the plugin settings.");
+      return;
     }
 
     // Init BLE scanner
-    scanner = new BLEScanner({
-      adapter: "dbus",
-      log,
-    });
+    scanner = new BLEScanner({ adapter: "dbus", log });
 
-    scanner.init().then(() => {
-      log("info", "BLE adapter ready");
+    scanner
+      .init()
+      .then(() => {
+        log("info", "BLE adapter ready");
 
-      // Start scan loop
-      const intervalMs = SCAN_INTERVALS[config.scanInterval] || 60000;
-      log("info", `Scan interval: ${config.scanInterval || "1m"}`);
+        const intervalMs = SCAN_INTERVALS[config.scanInterval] || 60000;
+        log("info", `Scan interval: ${config.scanInterval || "1m"}`);
 
-      // First scan immediately
-      runScanCycle(config).catch((e) => log("error", `Initial scan: ${e.message}`));
+        // First scan immediately
+        runScanCycle(config).catch((e) =>
+          log("error", `Initial scan: ${e.message}`),
+        );
 
-      scanTimer = setInterval(() => {
-        runScanCycle(config).catch((e) => log("error", `Periodic scan: ${e.message}`));
-      }, intervalMs);
-      if (scanTimer.unref) scanTimer.unref();
-    }).catch((err) => {
-      log("error", `BLE init failed: ${err.message}. Check Docker BLE access.`);
-    });
+        // Periodic scans
+        scanTimer = setInterval(() => {
+          runScanCycle(config).catch((e) =>
+            log("error", `Periodic scan: ${e.message}`),
+          );
+        }, intervalMs);
+        if (scanTimer.unref) scanTimer.unref();
+      })
+      .catch((err) => {
+        log("error", `BLE init failed: ${err.message}. Check Docker BLE access.`);
+      });
   },
 
   stop() {
