@@ -29,8 +29,11 @@ const registeredDeviceIds = [];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeDeviceId(name) {
-  const slug = name
+function makeDeviceId(person) {
+  if (person.bleAddress) {
+    return `ble-${person.bleAddress.replace(/:/g, "").toLowerCase()}`;
+  }
+  const slug = person.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
@@ -43,7 +46,6 @@ function pushState(api, personName, trackerRef) {
   const deviceId = makeDeviceId(personName);
   const isHome = info.state === STATE.HOME;
   api.updateDeviceState(deviceId, {
-    on: isHome,
     occupancy: isHome ? 1 : 0,
     rssi: info.avgRssi,
   });
@@ -124,13 +126,13 @@ module.exports = {
 
     // Register a sensor for each configured person
     for (const person of people) {
-      const deviceId = makeDeviceId(person.name);
+      const deviceId = makeDeviceId(person);
       api.registerDevice({
         id: deviceId,
         name: person.name,
         type: "sensor",
-        capabilities: ["on", "occupancy", "rssi"],
-        state: { on: false, occupancy: 0, rssi: 0 },
+        capabilities: ["occupancy", "rssi"],
+        state: { occupancy: 0, rssi: 0 },
       });
       registeredDeviceIds.push(deviceId);
       log("info", `Registered: ${person.name} (${deviceId})`);
