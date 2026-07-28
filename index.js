@@ -54,7 +54,7 @@ function pushState(api, personName, trackerRef) {
 // ─── Scan cycle ────────────────────────────────────────────────────────────────
 
 async function runScanCycle(config) {
-  if (!scanner || !tracker || !savedApi) return;
+    if (!scanner || !tracker || !savedApi) return;
 
   const duration = (config.scanDuration || 10) * 1000;
   const people = config.people || [];
@@ -62,10 +62,10 @@ async function runScanCycle(config) {
   if (people.length === 0) return;
 
   try {
-    log("debug", `Scanning BLE (${duration / 1000}s)...`);
+    debugEnabled && log("debug", `Scanning BLE (${duration / 1000}s)...`);
 
     const peripherals = await scanner.scan(duration);
-    log("debug", `Found ${peripherals.length} BLE device(s)`);
+    debugEnabled && log("debug", `Found ${peripherals.length} BLE device(s)`);
 
     const seenThisCycle = new Set();
 
@@ -80,7 +80,7 @@ async function runScanCycle(config) {
 
       seenThisCycle.add(matched.name);
       tracker.updateReading(matched.name, peripheral.rssi);
-      log("debug", `${matched.name}: RSSI ${peripheral.rssi} dBm`);
+      debugEnabled && log("debug", `${matched.name}: RSSI ${peripheral.rssi} dBm`);
     }
 
     // Mark unseen people
@@ -104,6 +104,7 @@ async function runScanCycle(config) {
 module.exports = {
   start(config, api) {
     savedApi = api;
+    const debugEnabled = !!config.debug;
     log = createLogger(api, "BlePresence");
 
     log("info", "Starting BLE Presence plugin...");
@@ -115,7 +116,7 @@ module.exports = {
     // Init presence tracker
     tracker = new PresenceTracker({
       rssiThreshold,
-      homeDelay: 5000,
+      homeDelay: config.homeDelay || 5000,
       awayDelay,
       onStateChange: (personId, oldState, newState, avgRssi) => {
         log("info", `${personId}: ${oldState} → ${newState} (RSSI: ${avgRssi} dBm)`);
