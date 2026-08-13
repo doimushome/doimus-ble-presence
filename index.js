@@ -134,6 +134,12 @@ module.exports = {
         type: "sensor",
         capabilities: ["occupancy", "rssi"],
         state: { occupancy: 0, rssi: 0 },
+        metadata: {
+          activity: {
+            occupancy: { label: "Occupancy" },
+            rssi: { label: "Signal", threshold: 5 },
+          },
+        },
       });
       registeredDeviceIds.push(deviceId);
       log("info", `Registered: ${person.name} (${deviceId})`);
