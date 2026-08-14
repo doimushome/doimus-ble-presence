@@ -139,6 +139,17 @@ module.exports = {
             occupancy: { label: "Occupancy" },
             rssi: { label: "Signal", threshold: 5 },
           },
+          ui: {
+            sections: [
+              {
+                title: "Presence",
+                rows: [
+                  { type: "value", key: "occupancy", label: "Present" },
+                  { type: "value", key: "rssi", label: "Signal", unit: "dBm" },
+                ],
+              },
+            ],
+          },
         },
       });
       registeredDeviceIds.push(deviceId);
