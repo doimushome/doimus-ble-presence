@@ -25,7 +25,6 @@ let log = null;
 let scanner = null;
 let tracker = null;
 let scanTimer = null;
-const registeredDeviceIds = [];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -152,7 +151,6 @@ module.exports = {
           },
         },
       });
-      registeredDeviceIds.push(deviceId);
       log("info", `Registered: ${person.name} (${deviceId})`);
     }
 
@@ -203,7 +201,6 @@ module.exports = {
       tracker.resetAll();
       tracker = null;
     }
-    registeredDeviceIds.length = 0;
     savedApi = null;
     log = null;
   },
