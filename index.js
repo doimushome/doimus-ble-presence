@@ -9,15 +9,6 @@ function createLogger(api, prefix) {
   return (level, msg) => api.log(level, `[${prefix}] ${msg}`);
 }
 
-// ─── Scan interval map ─────────────────────────────────────────────────────────
-
-const SCAN_INTERVALS = {
-  "1m": 60 * 1000,
-  "15m": 15 * 60 * 1000,
-  "30m": 30 * 60 * 1000,
-  "1h": 60 * 60 * 1000,
-};
-
 // ─── State ─────────────────────────────────────────────────────────────────────
 
 let savedApi = null;
@@ -37,17 +28,6 @@ function makeDeviceId(person) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
   return `ble-${slug}`;
-}
-
-function pushState(api, personName, trackerRef) {
-  const info = trackerRef.getState(personName);
-  if (!info) return;
-  const deviceId = makeDeviceId(personName);
-  const isHome = info.state === STATE.HOME;
-  api.updateDeviceState(deviceId, {
-    occupancy: isHome ? 1 : 0,
-    rssi: info.avgRssi,
-  });
 }
 
 // ─── Scan cycle ────────────────────────────────────────────────────────────────
@@ -91,7 +71,14 @@ async function runScanCycle(config) {
 
     // Push state to Doimus for each tracked person
     for (const person of people) {
-      pushState(savedApi, person.name, tracker);
+      const info = tracker.getState(person.name);
+      if (!info) continue;
+      const deviceId = makeDeviceId(person.name);
+      const isHome = info.state === STATE.HOME;
+      savedApi.updateDeviceState(deviceId, {
+        occupancy: isHome ? 1 : 0,
+        rssi: info.avgRssi,
+      });
     }
   } catch (err) {
     log("error", `Scan failed: ${err.message}`);
@@ -119,7 +106,14 @@ module.exports = {
       awayDelay,
       onStateChange: (personId, oldState, newState, avgRssi) => {
         log("info", `${personId}: ${oldState} → ${newState} (RSSI: ${avgRssi} dBm)`);
-        pushState(api, personId, tracker);
+        const info = tracker.getState(personId);
+        if (!info) return;
+        const deviceId = makeDeviceId(personId);
+        const isHome = info.state === STATE.HOME;
+        api.updateDeviceState(deviceId, {
+          occupancy: isHome ? 1 : 0,
+          rssi: info.avgRssi,
+        });
       },
       log,
     });
@@ -167,7 +161,13 @@ module.exports = {
       .then(() => {
         log("info", "BLE adapter ready");
 
-        const intervalMs = SCAN_INTERVALS[config.scanInterval] || 60000;
+        const intervalMs =
+          {
+            "1m": 60 * 1000,
+            "15m": 15 * 60 * 1000,
+            "30m": 30 * 60 * 1000,
+            "1h": 60 * 60 * 1000,
+          }[config.scanInterval] || 60000;
         log("info", `Scan interval: ${config.scanInterval || "1m"}`);
 
         // First scan immediately
